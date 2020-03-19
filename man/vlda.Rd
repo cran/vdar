@@ -46,16 +46,20 @@ data("uncertainties")
 mylda = vlda(x = dataobs[, 1:2], uncertainties = uncertainties[, 1:2], grouping = dataobs$Group)
 mypred = predict(mylda, newdata = dataobs[, 1:2], newerror = uncertainties[, 1:2])
 forplot = cbind(dataobs, LG1 = mypred$posterior[,1])
-library(ggplot2)
-library(ggthemes)
-ggplot(data = forplot, aes(x = Var1, y = Var2)) +
-   geom_point(aes(shape = Group, color = LG1))
-   scale_color_gradientn(colours = colorblind_pal()(5))
+if (require("ggplot2")) {
+  scatter_plot = ggplot(data = forplot, aes(x = Var1, y = Var2)) +
+    geom_point(aes(shape = Group, color = LG1))
+  if (require("ggthemes")) {
+    scatter_plot = scatter_plot +
+        scale_color_gradientn(colours = colorblind_pal()(5))
+  }
+  scatter_plot
+}
 
 # for compositional data
 data("dataobs_coda")
 data("uncertainties_coda")
-library(compositions)
+require(compositions)
 # generate ilr-transformation
 data_ilr = ilr(dataobs_coda[, 1:3])
 uncert_ilr = t(simplify2array(apply(uncertainties_coda[, 1:3],1,
@@ -64,11 +68,16 @@ attr(x = uncert_ilr, which = "class") <- "rmult"  # correct the class
 mylda_coda = vlda(x = data_ilr, uncertainties = uncert_ilr, grouping = dataobs_coda$Group)
 mypred_coda = predict(mylda_coda, newdata = data_ilr, newerror = uncert_ilr)
 forplot_coda = cbind(dataobs_coda, LG1 = mypred_coda$posterior[,1])
-library(ggtern)
-library(ggthemes)
-ggtern(data = forplot_coda, aes(x = Var1, y = Var2, z = Var3)) +
-    geom_point(aes(shape = Group, color = LG1)) +
-    scale_color_gradientn(colours = colorblind_pal()(5))
+# if 'ggtern' is installed, you can plot via ggtern:
+# if (require("ggtern")) {
+#   ternary_plot = ggtern(data = forplot_coda, aes(x = Var1, y = Var2, z = Var3)) +
+#     geom_point(aes(shape = Group, color = LG1))
+#   if (require("ggthemes")) {
+#     ternary_plot = ternary_plot +
+#         scale_color_gradientn(colours = colorblind_pal()(5))
+#   }
+#   ternary_plot
+# }
 
 }
 \author{

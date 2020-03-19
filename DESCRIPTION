@@ -1,7 +1,7 @@
 Package: vdar
 Type: Package
 Title: Discriminant Analysis Incorporating Individual Uncertainties
-Version: 0.1.1
+Version: 0.1.2-1
 Author: Solveig Pospiech [aut, cre], 
         K. Gerald van den Boogaart [ctb]
 Maintainer: Solveig Pospiech <s.pospiech@hzdr.de>
@@ -12,10 +12,10 @@ License: GPL-3
 Encoding: UTF-8
 LazyData: true
 Depends: R (>= 3.6.0)
-Imports: stats, utils, MASS, compositions
+Imports: compositions
 Suggests: ggplot2, ggthemes, ggtern
 RoxygenNote: 7.0.2
 NeedsCompilation: no
-Packaged: 2020-03-03 12:29:34 UTC; pospie53
+Packaged: 2020-03-19 11:34:24 UTC; pospie53
 Repository: CRAN
-Date/Publication: 2020-03-10 08:50:02 UTC
+Date/Publication: 2020-03-19 12:10:02 UTC
