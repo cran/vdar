@@ -4,13 +4,15 @@
 \name{uncertainties_coda}
 \alias{uncertainties_coda}
 \title{Simulated observation uncertainties of compositional data}
-\format{A data frame with 200 rows and 4 columns
+\format{
+A data frame with 200 rows and 4 columns
 \describe{
   \item{Var1}{simulated observed variable, compositional}
   \item{Var2}{simulated observed variable, compositional}
   \item{Var3}{simulated observed variable, compositional}
   \item{Group}{Factor with levels 'Group 1' and 'Group 2'}
-}}
+}
+}
 \usage{
 uncertainties_coda
 }

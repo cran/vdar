@@ -18,5 +18,5 @@ positive definite matrix
 Function to force positive definiteness on a matrix.
 }
 \author{
-Solveig
+Solveig Pospiech
 }

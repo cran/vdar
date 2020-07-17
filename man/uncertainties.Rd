@@ -4,12 +4,14 @@
 \name{uncertainties}
 \alias{uncertainties}
 \title{Simulated observation uncertainties}
-\format{A data frame with 200 rows and 3 columns
+\format{
+A data frame with 200 rows and 3 columns
 \describe{
   \item{Var1}{simulated observed variable}
   \item{Var2}{simulated observed variable}
   \item{Group}{Factor with levels 'Group 1' and 'Group 2'}
-}}
+}
+}
 \usage{
 uncertainties
 }

@@ -4,8 +4,8 @@
 #'
 #' @description Calculates the generalized mean of a data set by using a given group variance and individual, observation-wise variances for each observation of the data set
 #'
-#' @param x a matrix
-#' @param ... ...
+#' @param x a matrix containing the data for which the mean should be calculated
+#' @param ... not implemented
 #'
 #' @return vector of lenght of ncol(x) of generalized means
 #'
@@ -16,9 +16,20 @@ generalized_mean <- function(x, ...) {
 
 #' @describeIn generalized_mean for class matrix or data.frame
 #' @param var a matrix containing the corrected (estimated true) variance of the data set
-#' @param individual_var default is a 0 - matrix with the dimensions of x, can be used for implementing the individual uncertainties of each observation
+#' @param individual_var a matrix containing individual variances. Default is a 0 - matrix with the dimensions of x, can be used for implementing the individual uncertainties of each observation
 #' @export
 generalized_mean.default <- function(x, var, individual_var = matrix(0, nrow = nrow(x), ncol = ncol(x)), ...) {
+  # these two functions are equivalent in all generalized_mean functionos and to gsi.Diag resp. gsi.Inv of the pkg 'compositions'.
+  # they are here newly defined because until now gsi-functions from 'compositions' cannot be used outside the package
+  gsiDiag <- function(d) {
+    if (length(d) > 1)
+      return(diag(d))
+    return( structure(d,dim = c(1,1)))
+  }
+  gsiInv <- function(A,tol=1E-15) {
+    with(svd(A),v %*% gsiDiag(ifelse(abs(d)/max(d) > tol,1/d,0)) %*% t(u))
+  }
+
   if (is.null(dim(x)))
     stop("'x' is not a matrix")
   x <- as.matrix(x)
@@ -37,8 +48,10 @@ generalized_mean.default <- function(x, var, individual_var = matrix(0, nrow = n
     aux_sum = sum(aux)
   } else {# for more than one variable
     sigmasum <- apply(individual_var, 1, function(s) force_posdef(var + diag(s))) # diag because uncertainties are expected to have only entries in the diagonal
-    sigmaInv <- lapply(1:ncol(sigmasum), function(i) solve(matrix(sigmasum[,i], ncol = ncol(x))))
-    normalization = matrix(rowSums(matrix(unlist(sigmaInv), ncol = nrow(x), byrow = F)), ncol = ncol(x))
+    sigmaInv <- lapply(1:ncol(sigmasum), function(i) gsiInv(matrix(sigmasum[,i], ncol = ncol(x))))
+    zw <- unlist(sigmaInv)
+    zw[is.na(zw)] <- 0
+    normalization = matrix(rowSums(matrix(zw, ncol = nrow(x), byrow = F)), ncol = ncol(x))
     aux = sapply(1:nrow(x), function(i) sigmaInv[[i]] %*% x[i,] )
     aux_sum = rowSums(aux)
   }
@@ -51,9 +64,20 @@ generalized_mean.default <- function(x, var, individual_var = matrix(0, nrow = n
 
 #' @describeIn generalized_mean for class rmult of package 'compositions'
 #' @param var a matrix containing the corrected (estimated true) group variances
-#' @param individual_var default is a 0 - matrix with the dimensions of x, can be used for implementing the individual uncertainties
+#' @param individual_var a matrix containing individual variances. Default is a 0 - matrix with the dimensions of x, can be used for implementing the individual uncertainties
 #' @export
 generalized_mean.rmult <- function(x, var, individual_var = matrix(0, nrow = nrow(x), ncol = ncol(x)^2), ...) {
+  # these two functions are equivalent in all generalized_mean functionos and to gsi.Diag resp. gsi.Inv of the pkg 'compositions'.
+  # they are here newly defined because until now gsi-functions from 'compositions' cannot be used outside the package
+  gsiDiag <- function(d) {
+    if (length(d) > 1)
+      return(diag(d))
+    return( structure(d,dim = c(1,1)))
+  }
+  gsiInv <- function(A,tol=1E-15) {
+    with(svd(A),v %*% gsiDiag(ifelse(abs(d)/max(d) > tol,1/d,0)) %*% t(u))
+  }
+
   if (is.null(dim(x)))
     stop("'x' is not a matrix")
   x <- as.matrix(x)
@@ -70,16 +94,18 @@ generalized_mean.rmult <- function(x, var, individual_var = matrix(0, nrow = nro
     sigmasum <- apply(individual_var, 1, function(s) var + s)
     sigmaInv = 1/sigmasum
     normalization = sum(sigmaInv)
-    aux = sapply(1:nrow(x), function(i) sigmaInv[i] * x[i,] )
+    aux = sapply(1:nrow(x), function(i) sigmaInv[i] * as.vector(x[i,] )) # has to be "as.vector" because x is still rmult class
     aux_sum = sum(aux)
   } else {# for more than one variable
     sigmasum <- apply(individual_var, 1, function(s) force_posdef(var + matrix(s, ncol = ncol(x)))) # matrix because the uncertainties are expected to also have covariance entries
-    sigmaInv <- lapply(1:ncol(sigmasum), function(i) solve(matrix(sigmasum[,i], ncol = ncol(x))))
-    normalization = matrix(rowSums(matrix(unlist(sigmaInv), ncol = nrow(x), byrow = F)), ncol = ncol(x))
-    aux = sapply(1:nrow(x), function(i) sigmaInv[[i]] %*% x[i,] )
+    sigmaInv <- lapply(1:ncol(sigmasum), function(i) gsiInv(matrix(sigmasum[,i], ncol = ncol(x))))
+    zw <- unlist(sigmaInv)
+    zw[is.na(zw)] <- 0
+    normalization = matrix(rowSums(matrix(zw, ncol = nrow(x), byrow = F)), ncol = ncol(x))
+    aux = sapply(1:nrow(x), function(i) sigmaInv[[i]] %*% as.vector(x[i,] )) # has to be "as.vector" because x is still rmult class
     aux_sum = rowSums(aux)
   }
-  erg <- solve(normalization) %*% aux_sum
+  erg <- gsiInv(normalization) %*% aux_sum
   attr(erg,"Sigma") <- normalization
   return(erg)
 }
@@ -119,6 +145,7 @@ calc_estimate_true_var.default <- function(x,
   if (force_pos_def) {
     message("Checking positive definiteness of corrected group variances...")
     newgroupsigma = force_posdef(newgroupsigma)
+    message("Checking done")
   }
   return(newgroupsigma)
 }
@@ -139,6 +166,7 @@ calc_estimate_true_var.rmult <- function(x, individual_var, force_pos_def = T, .
   if (force_pos_def) {
     message("Checking positive definiteness of corrected group variances...")
     newgroupsigma = force_posdef(newgroupsigma)
+    message("Checking done")
   }
   return(newgroupsigma)
 }
@@ -147,7 +175,7 @@ calc_estimate_true_var.rmult <- function(x, individual_var, force_pos_def = T, .
 #'
 #' @description Function to force positive definiteness on a matrix.
 #'
-#' @author Solveig
+#' @author Solveig Pospiech
 #'
 #' @param x matrix
 #' @param verbose logical, default TRUE. Should the function print the corrected eigenvalues?

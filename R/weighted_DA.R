@@ -3,7 +3,8 @@
 #' @author Solveig Pospiech, package 'MASS'
 # #' Raimon Tolosana-Delgado, K. Gerald v.d. Boogaart
 #'
-#' @description Extension of the qda() of package 'MASS' to calculate a QDA incorporating individual, cell-wise uncertainties, e.g. variances per measuring point.
+#' @description Extension of the qda() of package 'MASS' to calculate a QDA incorporating individual, cell-wise uncertainties,
+#' e.g. if the uncertainties are expressed as individual variances for each measurand.
 #'
 #' @details Uncertainties can be considered in a statistical analysis either by each measured variable, by each observation or by using the individual, cell-wise uncertainties.
 #' There are several methods for incorporating variable-wise or observation-wise uncertainties into a QDA, most of them using the uncertainties as weights for the variables or observations of the data set.
@@ -14,9 +15,11 @@
 #' But this observed group variance might deviate notably from the group variance, which can be estimated including the uncertainties.
 #' This methodological framework does not only allow to incorporate cell-wise uncertainties, but also would largely be valid if the information about the co-dependency between uncertainties within each observation would be reported.
 #'
-#' @param x data frame or matrix
-#' @param uncertainties data frame or matrix, values for uncertainties per cell. Uncertainties should be relative errors, e.g. relative standard deviation
-#' @param grouping a factor specifying the group for each observation.
+#' @references Pospiech, S., R. Tolosana-Delgado and K.G. van den Boogaart (2020) Discriminant Analysis for Compositional Data Incorporating Cell-Wise Uncertainties, Mathematical Geosciences
+#'
+#' @param x data frame or matrix containing the data to be discriminated
+#' @param uncertainties data frame or matrix containing the values for uncertainties per cell. Uncertainties should be relative errors, e.g. the relative standard deviation of the  measurand
+#' @param grouping a factor or character vector specifying the group for each observation (row).
 #' @param prior the prior probabilities of class membership. If unspecified, the class proportions for the training set are used. If present, the probabilities should be specified in the order of the factor levels.
 #'
 #' @examples
@@ -40,11 +43,11 @@
 #' data("dataobs_coda")
 #' data("uncertainties_coda")
 #' require(compositions)
-#' # generate ilr-transformation
+#' # generate ilr-transformation (from package 'compositions')
 #' data_ilr = ilr(dataobs_coda[, 1:3])
 #' uncert_ilr = t(simplify2array(apply(uncertainties_coda[, 1:3],1,
 #'                        function(Delta) clrvar2ilr(diag(Delta)))))
-#' attr(x = uncert_ilr, which = "class") <- "rmult"  # correct the class
+#' uncert_ilr = rmult(uncert_ilr) # change class into rmult from package 'compositions'
 #' myqda_coda = vqda(x = data_ilr, uncertainties = uncert_ilr, grouping = dataobs_coda$Group)
 #' mypred_coda = predict(myqda_coda, newdata = data_ilr, newerror = uncert_ilr)
 #' forplot_coda = cbind(dataobs_coda, LG1 = mypred_coda$posterior[,1])
@@ -72,15 +75,17 @@
 vqda <- function(x,
                  uncertainties,
                  grouping,
-                 prior = proportions) {
+                 prior) {
+  # not implemented yet: formula, ....
 
-  # missing: formula, ....
-  # check if uncertainties and x have same class
-  if (class(x) != class(uncertainties)) {
-    if ("rmult" %in% class(x) & !"rmult" %in% class(uncertainties)) warning("x has class'rmult' but uncertainties has not. Are you sure this is correct?")
-    if (!"rmult" %in% class(x) & "rmult" %in% class(uncertainties)) warning("uncertainties has class'rmult' but x has not. Are you sure this is correct?")
-    if (!"rmult" %in% class(x) & !"rmult" %in% class(uncertainties)) warning("x and uncertainties have different classes. This might cause problems at a later stage.")
-  }
+  UseMethod("vqda", x)
+}
+
+#' @export
+vqda.default <- function(x,
+                         uncertainties,
+                         grouping,
+                         prior = proportions) {
 
   # prepare data ------------------------------------------------------------
   # copied from MASS::qda.default
@@ -91,12 +96,6 @@ vqda <- function(x,
     stop("infinite, NA or NaN values in 'x'")
   n <- nrow(x)
   p <- ncol(x)
-  # --
-  if (class(uncertainties) == 'rmult') {
-    p = p^2 # because then the uncertainties are stored as arrays in the rows.
-    if (ncol(uncertainties) != p) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure the input of the transformed uncertainties is correct.")
-  }
-  # --
   if (n != length(grouping))
     stop("nrow(x) and length(grouping) are different")
   g <- as.factor(grouping)
@@ -105,6 +104,7 @@ vqda <- function(x,
   names(counts) <- lev
   if (any(counts < p + 1))
     stop("some group is too small for 'qda'")
+
   proportions <- counts/length(g)
   ng <- length(proportions)
   if (any(prior < 0) || round(sum(prior), 5) != 1)
@@ -118,15 +118,89 @@ vqda <- function(x,
 
   # copy end
 
-  # own code --------
+  # vdar new code --------
+  # check if uncertainties and x have same class
+  if (class(uncertainties) == "rmult") {
+    warning("'uncertainties' has class 'rmult' but 'x' has not. Are you sure this is correct?")
+    # check the format of the uncertainties matrix, because then the uncertainties are stored as arrays in the rows.
+    if (ncol(uncertainties) != p^2) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure the input of the transformed uncertainties is correct.")
+  }
 
   Zg = split(x, grouping) # split works perfectly fine for rmult-class to get in the lists matrix.
   # if class is not rmult, split needs a data.frame to put it into matrix-like entries in the list-entries
   # to avoid the costs of data.frame but also to avoid that rmult is mandatory for running this function, here comes the reforming of the list- entries:
-  if (!"rmult" %in% class(x)) Zg = lapply(Zg, function(y) matrix(y, ncol = ncol(x)))
+  Zg = lapply(Zg, function(y) matrix(y, ncol = ncol(x)))
   # split errors into the groups, now they are vectors
   sigmaIg <- split(compositions::rmult(uncertainties), grouping)
-  if (!"rmult" %in% class(uncertainties)) sigmaIg = lapply(sigmaIg, function(y) matrix(y, ncol = ncol(uncertainties))) # for this line see comment for Zg
+  # for following line see comment for Zg
+  sigmaIg = lapply(sigmaIg, function(y) matrix(y, ncol = ncol(uncertainties)))
+  # generate a new sigma: the sigmasums have to be normalized to nrow (per group) and subtracted:
+  sigmacorrected <- mapply(calc_estimate_true_var, Zg, sigmaIg, SIMPLIFY = FALSE)
+  meancorrected <- mapply(generalized_mean, Zg, sigmacorrected, sigmaIg, SIMPLIFY = FALSE)
+  structure(list(
+    prior = prior,
+    counts = counts,
+    means = group.means,
+    generalizedMeans = meancorrected,
+    groupVarCorrected = sigmacorrected,
+    lev = lev,
+    grouping = grouping
+  )
+  ,class = "vqda")
+}
+
+#' @export
+vqda.rmult <- function(x,
+                       uncertainties,
+                       grouping,
+                       prior = proportions) {
+
+  # prepare data ------------------------------------------------------------
+  # copied from MASS::qda.default
+  if (is.null(dim(x)))
+    stop("'x' is not a matrix")
+  x <- as.matrix(x)
+  if (any(!is.finite(x)))
+    stop("infinite, NA or NaN values in 'x'")
+  n <- nrow(x)
+  p <- ncol(x)
+  if (n != length(grouping))
+    stop("nrow(x) and length(grouping) are different")
+  g <- as.factor(grouping)
+  lev <- levels(g)
+  counts <- as.vector(table(g))
+  names(counts) <- lev
+  if (any(counts < p + 1))
+    stop("some group is too small for 'qda'")
+
+  proportions <- counts/length(g)
+  ng <- length(proportions)
+  if (any(prior < 0) || round(sum(prior), 5) != 1)
+    stop("invalid 'prior'")
+  if (length(prior) != ng)
+    stop("'prior' is of incorrect length")
+  names(prior) <- lev
+  group.means <- tapply(unclass(x), list(rep(g, ncol(x)), col(x)), mean)
+  # scaling <- array(dim = c(p, p, ng))
+  # ldet <- numeric(ng)
+
+  # copy end
+
+  # vdar new code --------
+  # check if uncertainties and x have same class
+  if (class(uncertainties) != "rmult") {
+    warning("'x' has class 'rmult' but 'uncertainties' has not. Are you sure this is correct?")
+    message("The 'uncertainties' are expected to be the outcome of 't(apply( <original coda uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure 'uncertainties' has the correct input format and transformation(s).")
+  }
+
+  # check the format of the uncertainties matrix, because then the uncertainties are stored as arrays in the rows.
+  if (ncol(uncertainties) != p^2) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure 'uncertainties' has the correct input format and transformation(s)")
+
+  Zg = split(x, grouping) # split works perfectly fine for rmult-class to get in the lists matrix.
+  # this line only necessary, because split.rmult "looses" rmult class
+  Zg = lapply(Zg, function(y) rmult(y))
+  # split errors into the groups, now they are vectors
+  sigmaIg <- split(compositions::rmult(uncertainties), grouping)
   # generate a new sigma: the sigmasums have to be normalized to nrow(per group) and subtracted:
   sigmacorrected <- mapply(calc_estimate_true_var, Zg, sigmaIg, SIMPLIFY = FALSE)
   meancorrected <- mapply(generalized_mean, Zg, sigmacorrected, sigmaIg, SIMPLIFY = FALSE)
@@ -143,27 +217,29 @@ vqda <- function(x,
 }
 
 
-
 #' Weighted Linear Discriminant Analysis
 #'
 #' @author Solveig Pospiech, package 'MASS'
 # #' Raimon Tolosana-Delgado, K. Gerald v.d. Boogaart
 #'
-#' @description Extension of the qda() of package 'MASS' (not the lda() function) to calculate a LDA incorporating individual, cell-wise uncertainties, e.g. variances per measuring point.
+#' @description Extension of the qda() of package 'MASS' (not the lda() function) to calculate a LDA incorporating individual, cell-wise uncertainties,
+#' e.g. if the uncertainties are expressed as individual variances for each measurand.
 #'
 #' @details Uncertainties can be considered in a statistical analysis either by each measured variable, by each observation or by using the individual, cell-wise uncertainties.
 #' There are several methods for incorporating variable-wise or observation-wise uncertainties into a QDA, most of them using the uncertainties as weights for the variables or observations of the data set.
 #' The term 'cell-wise uncertainties' describe a data set of $d$ analysed variables where each observation has an individual uncertainty for each of the $d$ variables conforming it.
 #' Hence, a data set of $n \\times d$ data values has associated a data set of $n \\times d$ individual uncertainties.
 #' Instead of weighting the columns or rows of the data set, the vlda() function uses uncertainties to recalculate better estimates of the group variances and group means.
-#' It is internally very similar to the vqda() function, but with an averaged group variance for all groups.
+#' It is internally very similar to the \code{\link{vqda}} function, but with an averaged group variance for all groups.
 #' If the presence of uncertainties is not accounted for, the decision rules  are based on the group variances calculated by the given data set.
 #' But this observed group variance might deviate notably from the group variance, which can be estimated including the uncertainties.
 #' This methodological framework does not only allow to incorporate cell-wise uncertainties, but also would largely be valid if the information about the co-dependency between uncertainties within each observation would be reported.
 #'
-#' @param x data frame or matrix
-#' @param uncertainties data frame or matrix, values for uncertainties per cell. Uncertainties should be relative errors, e.g. relative standard deviation#'
-#' @param grouping a factor specifying the group for each observation.
+#' @references Pospiech, S., R. Tolosana-Delgado and K.G. van den Boogaart (2020) Discriminant Analysis for Compositional Data Incorporating Cell-Wise Uncertainties, Mathematical Geosciences
+#'
+#' @param x frame or matrix containing the data to be discriminated
+#' @param uncertainties data frame or matrix containing the values for uncertainties per cell. Uncertainties should be relative errors, e.g. the relative standard deviation of the  measurand
+#' @param grouping a factor or character vector specifying the group for each observation (row).
 #' @param prior the prior probabilities of class membership. If unspecified, the class proportions for the training set are used. If present, the probabilities should be specified in the order of the factor levels.
 #'
 #' @examples
@@ -187,11 +263,11 @@ vqda <- function(x,
 #' data("dataobs_coda")
 #' data("uncertainties_coda")
 #' require(compositions)
-#' # generate ilr-transformation
+#' # generate ilr-transformation (from package 'compositions')
 #' data_ilr = ilr(dataobs_coda[, 1:3])
 #' uncert_ilr = t(simplify2array(apply(uncertainties_coda[, 1:3],1,
 #'                        function(Delta) clrvar2ilr(diag(Delta)))))
-#' attr(x = uncert_ilr, which = "class") <- "rmult"  # correct the class
+#' uncert_ilr = rmult(uncert_ilr) # change class into rmult from package 'compositions'
 #' mylda_coda = vlda(x = data_ilr, uncertainties = uncert_ilr, grouping = dataobs_coda$Group)
 #' mypred_coda = predict(mylda_coda, newdata = data_ilr, newerror = uncert_ilr)
 #' forplot_coda = cbind(dataobs_coda, LG1 = mypred_coda$posterior[,1])
@@ -214,20 +290,21 @@ vqda <- function(x,
 #' \code{groupVarCorrected} the group variances calculated by the function \code{\link{calc_estimate_true_var}}
 #' \code{lev} the levels of the grouping factor.
 #' \code{grouping} the factor specifying the class for each observation.
-#'
 #' @export
 vlda <- function(x,
                  uncertainties,
                  grouping,
-                 prior = proportions) {
+                 prior) {
+  # not implemented yet: formula, ....
 
-  # missing: formula, ....
-  # check if uncertainties and x have same class
-  if (class(x) != class(uncertainties)) {
-    if ("rmult" %in% class(x) & !"rmult" %in% class(uncertainties)) warning("x has class'rmult' but uncertainties has not. Are you sure this is correct?")
-    if (!"rmult" %in% class(x) & "rmult" %in% class(uncertainties)) warning("uncertainties has class'rmult' but x has not. Are you sure this is correct?")
-    if (!"rmult" %in% class(x) & !"rmult" %in% class(uncertainties)) warning("x and uncertainties have different classes. This might cause problems at a later stage.")
-  }
+  UseMethod("vlda", x)
+}
+
+#' @export
+vlda.default <- function(x,
+                         uncertainties,
+                         grouping,
+                         prior = proportions) {
 
   # prepare data ------------------------------------------------------------
   # copied from MASS::qda.default
@@ -238,12 +315,6 @@ vlda <- function(x,
     stop("infinite, NA or NaN values in 'x'")
   n <- nrow(x)
   p <- ncol(x)
-  # --
-  if (class(uncertainties) == 'rmult') {
-    p = p^2 # because then the uncertainties are stored as arrays in the rows.
-    if (ncol(uncertainties) != p) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure the input of the transformed uncertainties is correct.")
-  }
-  # --
   if (n != length(grouping))
     stop("nrow(x) and length(grouping) are different")
   g <- as.factor(grouping)
@@ -251,7 +322,8 @@ vlda <- function(x,
   counts <- as.vector(table(g))
   names(counts) <- lev
   if (any(counts < p + 1))
-    stop("some group is too small for 'lda'")
+    stop("some group is too small for 'qda'")
+
   proportions <- counts/length(g)
   ng <- length(proportions)
   if (any(prior < 0) || round(sum(prior), 5) != 1)
@@ -265,15 +337,22 @@ vlda <- function(x,
 
   # copy end
 
-  # own code --------
+  # vdar new code --------
+  # check if uncertainties and x have same class
+  if (class(uncertainties) == "rmult") {
+    warning("'uncertainties' has class 'rmult' but 'x' has not. Are you sure this is correct?")
+    # check the format of the uncertainties matrix, because then the uncertainties are stored as arrays in the rows.
+    if (ncol(uncertainties) != p^2) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure the input of the transformed uncertainties is correct.")
+  }
 
   Zg = split(x, grouping) # split works perfectly fine for rmult-class to get in the lists matrix.
   # if class is not rmult, split needs a data.frame to put it into matrix-like entries in the list-entries
   # to avoid the costs of data.frame but also to avoid that rmult is mandatory for running this function, here comes the reforming of the list- entries:
-  if (!"rmult" %in% class(x)) Zg = lapply(Zg, function(y) matrix(y, ncol = ncol(x)))
+  Zg = lapply(Zg, function(y) matrix(y, ncol = ncol(x)))
   # split errors into the groups, now they are vectors
   sigmaIg <- split(compositions::rmult(uncertainties), grouping)
-  if (!"rmult" %in% class(uncertainties)) sigmaIg = lapply(sigmaIg, function(y) matrix(y, ncol = ncol(uncertainties))) # for this line see comment for Zg
+  # for following line see comment for Zg
+  sigmaIg = lapply(sigmaIg, function(y) matrix(y, ncol = ncol(uncertainties)))
   # sum up all group variances and normalize by DF (maybe not the cleanest code, because the var is still there)
   averaged_variance = Reduce("+", lapply(Zg, function(y) compositions::var(y)*(nrow(y) - 1)))/(n - ng)
   # sum all uncertainties by group
@@ -284,6 +363,7 @@ vlda <- function(x,
   } else {
     sigmacorrected_t <- force_posdef(averaged_variance - diag(averaged_uncertainties))
   }
+  message("Checking done")
   # generate a list with the sigmacorrected for each group, to mimick the group variances of QDA
   sigmacorrected = rep(list(sigmacorrected_t), ng)
   meancorrected <- mapply(generalized_mean, Zg, sigmacorrected, sigmaIg, SIMPLIFY = FALSE)
@@ -298,6 +378,120 @@ vlda <- function(x,
   )
   ,class = "vlda")
 }
+
+#' @export
+vlda.rmult <- function(x,
+                       uncertainties,
+                       grouping,
+                       prior = proportions) {
+
+  # prepare data ------------------------------------------------------------
+  # copied from MASS::qda.default
+  if (is.null(dim(x)))
+    stop("'x' is not a matrix")
+  x <- as.matrix(x)
+  if (any(!is.finite(x)))
+    stop("infinite, NA or NaN values in 'x'")
+  n <- nrow(x)
+  p <- ncol(x)
+  if (n != length(grouping))
+    stop("nrow(x) and length(grouping) are different")
+  g <- as.factor(grouping)
+  lev <- levels(g)
+  counts <- as.vector(table(g))
+  names(counts) <- lev
+  if (any(counts < p + 1))
+    stop("some group is too small for 'qda'")
+
+  proportions <- counts/length(g)
+  ng <- length(proportions)
+  if (any(prior < 0) || round(sum(prior), 5) != 1)
+    stop("invalid 'prior'")
+  if (length(prior) != ng)
+    stop("'prior' is of incorrect length")
+  names(prior) <- lev
+  group.means <- tapply(unclass(x), list(rep(g, ncol(x)), col(x)), mean)
+  # scaling <- array(dim = c(p, p, ng))
+  # ldet <- numeric(ng)
+
+  # copy end
+
+  # vdar new code --------
+  # check if uncertainties and x have same class
+  if (class(uncertainties) != "rmult") {
+    warning("'x' has class 'rmult' but 'uncertainties' has not. Are you sure this is correct?")
+    message("The 'uncertainties' are expected to be the outcome of 't(apply( <original coda uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure 'uncertainties' has the correct input format and transformation(s).")
+  }
+
+  # check the format of the uncertainties matrix, because then the uncertainties are stored as arrays in the rows.
+  if (ncol(uncertainties) != p^2) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure 'uncertainties' has the correct input format and transformation(s)")
+
+  Zg = split(x, grouping) # split works perfectly fine for rmult-class to get in the lists matrix.
+  # this line only necessary, because split.rmult "looses" rmult class
+  Zg = lapply(Zg, function(y) rmult(y))
+  # split errors into the groups, now they are vectors
+  sigmaIg <- split(compositions::rmult(uncertainties), grouping)
+  # sum up all group variances and normalize by DF (maybe not the cleanest code, because the var is still there)
+  averaged_variance = Reduce("+", lapply(Zg, function(y) compositions::var(y)*(nrow(y) - 1)))/(n - ng)
+  # sum all uncertainties by group
+  averaged_uncertainties = Reduce("+", lapply(sigmaIg, colSums))/n
+  message("Checking positive definiteness of corrected variance for all groups...")
+  if ("rmult" %in% class(uncertainties)) {
+    sigmacorrected_t <- force_posdef(averaged_variance - matrix(averaged_uncertainties, ncol = ncol(averaged_variance)))
+  } else {
+    sigmacorrected_t <- force_posdef(averaged_variance - diag(averaged_uncertainties))
+  }
+  message("Checking done")
+  # generate a list with the sigmacorrected for each group, to mimick the group variances of QDA
+  sigmacorrected = rep(list(sigmacorrected_t), ng)
+  meancorrected <- mapply(generalized_mean, Zg, sigmacorrected, sigmaIg, SIMPLIFY = FALSE)
+  structure(list(
+    prior = prior,
+    counts = counts,
+    means = group.means,
+    generalizedMeans = meancorrected,
+    groupVarCorrected = sigmacorrected,
+    lev = lev,
+    grouping = grouping
+  )
+  ,class = "vlda")
+}
+
+
+
+# vlda <- function(x,
+#                  uncertainties,
+#                  grouping,
+#                  prior = proportions) {
+#
+#
+#
+#   # own code --------
+#
+#   # sum up all group variances and normalize by DF (maybe not the cleanest code, because the var is still there)
+#   averaged_variance = Reduce("+", lapply(Zg, function(y) compositions::var(y)*(nrow(y) - 1)))/(n - ng)
+#   # sum all uncertainties by group
+#   averaged_uncertainties = Reduce("+", lapply(sigmaIg, colSums))/n
+#   message("Checking positive definiteness of corrected variance for all groups...")
+#   if ("rmult" %in% class(uncertainties)) {
+#     sigmacorrected_t <- force_posdef(averaged_variance - matrix(averaged_uncertainties, ncol = ncol(averaged_variance)))
+#   } else {
+#     sigmacorrected_t <- force_posdef(averaged_variance - diag(averaged_uncertainties))
+#   }
+#   # generate a list with the sigmacorrected for each group, to mimick the group variances of QDA
+#   sigmacorrected = rep(list(sigmacorrected_t), ng)
+#   meancorrected <- mapply(generalized_mean, Zg, sigmacorrected, sigmaIg, SIMPLIFY = FALSE)
+#   structure(list(
+#     prior = prior,
+#     counts = counts,
+#     means = group.means,
+#     generalizedMeans = meancorrected,
+#     groupVarCorrected = sigmacorrected,
+#     lev = lev,
+#     grouping = grouping
+#   )
+#   ,class = "vlda")
+# }
 
 
 #' predict.vqda
@@ -521,6 +715,7 @@ predict.vlda <- function(object,
   }
 
   L <- mapply(LgsFunc, newZs, newSigmaIs) # Ergebnis von dieser Funktion sollte matrix mit [n x Anzahl der Gruppen]
+  if (mean(L) > 500) L = L/10 # to avoid infinity
 
   p = t(exp(L)) * object$prior
   posterior = compositions::clo(p)

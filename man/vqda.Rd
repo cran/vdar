@@ -4,14 +4,14 @@
 \alias{vqda}
 \title{Weighted Quadratic Discriminant Analysis}
 \usage{
-vqda(x, uncertainties, grouping, prior = proportions)
+vqda(x, uncertainties, grouping, prior)
 }
 \arguments{
-\item{x}{data frame or matrix}
+\item{x}{data frame or matrix containing the data to be discriminated}
 
-\item{uncertainties}{data frame or matrix, values for uncertainties per cell. Uncertainties should be relative errors, e.g. relative standard deviation}
+\item{uncertainties}{data frame or matrix containing the values for uncertainties per cell. Uncertainties should be relative errors, e.g. the relative standard deviation of the  measurand}
 
-\item{grouping}{a factor specifying the group for each observation.}
+\item{grouping}{a factor or character vector specifying the group for each observation (row).}
 
 \item{prior}{the prior probabilities of class membership. If unspecified, the class proportions for the training set are used. If present, the probabilities should be specified in the order of the factor levels.}
 }
@@ -26,7 +26,8 @@ object of class 'vqda' containing the following components:
 \code{grouping} the factor specifying the class for each observation.
 }
 \description{
-Extension of the qda() of package 'MASS' to calculate a QDA incorporating individual, cell-wise uncertainties, e.g. variances per measuring point.
+Extension of the qda() of package 'MASS' to calculate a QDA incorporating individual, cell-wise uncertainties,
+e.g. if the uncertainties are expressed as individual variances for each measurand.
 }
 \details{
 Uncertainties can be considered in a statistical analysis either by each measured variable, by each observation or by using the individual, cell-wise uncertainties.
@@ -59,11 +60,11 @@ if (require("ggplot2")) {
 data("dataobs_coda")
 data("uncertainties_coda")
 require(compositions)
-# generate ilr-transformation
+# generate ilr-transformation (from package 'compositions')
 data_ilr = ilr(dataobs_coda[, 1:3])
 uncert_ilr = t(simplify2array(apply(uncertainties_coda[, 1:3],1,
                        function(Delta) clrvar2ilr(diag(Delta)))))
-attr(x = uncert_ilr, which = "class") <- "rmult"  # correct the class
+uncert_ilr = rmult(uncert_ilr) # change class into rmult from package 'compositions'
 myqda_coda = vqda(x = data_ilr, uncertainties = uncert_ilr, grouping = dataobs_coda$Group)
 mypred_coda = predict(myqda_coda, newdata = data_ilr, newerror = uncert_ilr)
 forplot_coda = cbind(dataobs_coda, LG1 = mypred_coda$posterior[,1])
@@ -78,6 +79,9 @@ forplot_coda = cbind(dataobs_coda, LG1 = mypred_coda$posterior[,1])
 #   ternary_plot
 # }
 
+}
+\references{
+Pospiech, S., R. Tolosana-Delgado and K.G. van den Boogaart (2020) Discriminant Analysis for Compositional Data Incorporating Cell-Wise Uncertainties, Mathematical Geosciences
 }
 \author{
 Solveig Pospiech, package 'MASS'

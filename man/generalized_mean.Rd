@@ -23,13 +23,13 @@ generalized_mean(x, ...)
 )
 }
 \arguments{
-\item{x}{a matrix}
+\item{x}{a matrix containing the data for which the mean should be calculated}
 
-\item{...}{...}
+\item{...}{not implemented}
 
 \item{var}{a matrix containing the corrected (estimated true) group variances}
 
-\item{individual_var}{default is a 0 - matrix with the dimensions of x, can be used for implementing the individual uncertainties}
+\item{individual_var}{a matrix containing individual variances. Default is a 0 - matrix with the dimensions of x, can be used for implementing the individual uncertainties}
 }
 \value{
 vector of lenght of ncol(x) of generalized means

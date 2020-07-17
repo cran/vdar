@@ -4,13 +4,15 @@
 \name{datatrue_coda}
 \alias{datatrue_coda}
 \title{Simulated true compositional data}
-\format{A data frame with 200 rows and 4 columns
+\format{
+A data frame with 200 rows and 4 columns
 \describe{
   \item{Var1}{simulated variable, compositional}
   \item{Var2}{simulated variable, compositional}
   \item{Var3}{simulated variable, compositional}
   \item{Group}{Factor with levels 'Group 1' and 'Group 2'}
-}}
+}
+}
 \usage{
 datatrue_coda
 }
