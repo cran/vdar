@@ -1,8 +1,9 @@
-41ca6792af2af24ed63193628173caa6 *DESCRIPTION
-f258d4a43f1f56e27b9641a5b9f1430e *NAMESPACE
+34f57925c7ea8d0b8290594748411a63 *DESCRIPTION
+4ef24149ad2607d06af4e9fc4b74dc0a *NAMESPACE
+df7c201d45a6daf0406c4ee9514f37e7 *NEWS.md
 886dbba439d6029c1fd119b7c4b447f5 *R/data.R
 e4dde8f6f94d1386e6d6ac0467e755a8 *R/subfunctions.R
-7d59e918aa55b57d7c7d0dace8a63ef9 *R/weighted_DA.R
+2dd4e3a4d135b7384b1f82f0c9cde123 *R/weighted_DA.R
 6eda51ae1abec32e1cf952be738082ac *data/dataobs.RData
 ac89927b04d36fdfd5ee863d4768ff69 *data/dataobs_coda.RData
 97e723b858d001a7fba135714d666edd *data/datatrue.RData
@@ -19,5 +20,5 @@ bc9b123abfd5b695f0a2f3fa4a87b74f *man/datatrue_coda.Rd
 5706fc221fbc16ce39bb8e713b14642a *man/predict.Rd
 0b0903246b9c4277dce0a28893452905 *man/uncertainties.Rd
 ac7bec32771ab426910a062332c9f876 *man/uncertainties_coda.Rd
-9cbc8c110fe59b56a915aa1ac0f25791 *man/vlda.Rd
-666710b108963586a0e85fd2f3685d48 *man/vqda.Rd
+b8333bfbd4d0209841cb09868e8644cd *man/vlda.Rd
+1da62a29524c713725628c5f2b430c02 *man/vqda.Rd

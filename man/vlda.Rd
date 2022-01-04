@@ -65,7 +65,7 @@ require(compositions)
 data_ilr = ilr(dataobs_coda[, 1:3])
 uncert_ilr = t(simplify2array(apply(uncertainties_coda[, 1:3],1,
                        function(Delta) clrvar2ilr(diag(Delta)))))
-uncert_ilr = rmult(uncert_ilr) # change class into rmult from package 'compositions'
+uncert_ilr = compositions::rmult(uncert_ilr) # change class into rmult from package 'compositions'
 mylda_coda = vlda(x = data_ilr, uncertainties = uncert_ilr, grouping = dataobs_coda$Group)
 mypred_coda = predict(mylda_coda, newdata = data_ilr, newerror = uncert_ilr)
 forplot_coda = cbind(dataobs_coda, LG1 = mypred_coda$posterior[,1])

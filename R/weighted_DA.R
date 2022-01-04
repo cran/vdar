@@ -47,7 +47,7 @@
 #' data_ilr = ilr(dataobs_coda[, 1:3])
 #' uncert_ilr = t(simplify2array(apply(uncertainties_coda[, 1:3],1,
 #'                        function(Delta) clrvar2ilr(diag(Delta)))))
-#' uncert_ilr = rmult(uncert_ilr) # change class into rmult from package 'compositions'
+#' uncert_ilr = compositions::rmult(uncert_ilr) # change class into rmult from package 'compositions'
 #' myqda_coda = vqda(x = data_ilr, uncertainties = uncert_ilr, grouping = dataobs_coda$Group)
 #' mypred_coda = predict(myqda_coda, newdata = data_ilr, newerror = uncert_ilr)
 #' forplot_coda = cbind(dataobs_coda, LG1 = mypred_coda$posterior[,1])
@@ -98,7 +98,7 @@ vqda.default <- function(x,
   p <- ncol(x)
   if (n != length(grouping))
     stop("nrow(x) and length(grouping) are different")
-  g <- as.factor(grouping)
+  g <- droplevels(as.factor(grouping))
   lev <- levels(g)
   counts <- as.vector(table(g))
   names(counts) <- lev
@@ -126,12 +126,12 @@ vqda.default <- function(x,
     if (ncol(uncertainties) != p^2) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure the input of the transformed uncertainties is correct.")
   }
 
-  Zg = split(x, grouping) # split works perfectly fine for rmult-class to get in the lists matrix.
+  Zg = split(x, g) # split works perfectly fine for rmult-class to get in the lists matrix.
   # if class is not rmult, split needs a data.frame to put it into matrix-like entries in the list-entries
   # to avoid the costs of data.frame but also to avoid that rmult is mandatory for running this function, here comes the reforming of the list- entries:
   Zg = lapply(Zg, function(y) matrix(y, ncol = ncol(x)))
   # split errors into the groups, now they are vectors
-  sigmaIg <- split(compositions::rmult(uncertainties), grouping)
+  sigmaIg <- split(compositions::rmult(uncertainties), g)
   # for following line see comment for Zg
   sigmaIg = lapply(sigmaIg, function(y) matrix(y, ncol = ncol(uncertainties)))
   # generate a new sigma: the sigmasums have to be normalized to nrow (per group) and subtracted:
@@ -166,7 +166,7 @@ vqda.rmult <- function(x,
   p <- ncol(x)
   if (n != length(grouping))
     stop("nrow(x) and length(grouping) are different")
-  g <- as.factor(grouping)
+  g <- droplevels(as.factor(grouping))
   lev <- levels(g)
   counts <- as.vector(table(g))
   names(counts) <- lev
@@ -196,11 +196,9 @@ vqda.rmult <- function(x,
   # check the format of the uncertainties matrix, because then the uncertainties are stored as arrays in the rows.
   if (ncol(uncertainties) != p^2) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure 'uncertainties' has the correct input format and transformation(s)")
 
-  Zg = split(x, grouping) # split works perfectly fine for rmult-class to get in the lists matrix.
-  # this line only necessary, because split.rmult "looses" rmult class
-  Zg = lapply(Zg, function(y) rmult(y))
+  Zg = split(compositions::rmult(x), g) # split works perfectly fine for rmult-class to get in the lists matrix.
   # split errors into the groups, now they are vectors
-  sigmaIg <- split(compositions::rmult(uncertainties), grouping)
+  sigmaIg <- split(compositions::rmult(uncertainties), g)
   # generate a new sigma: the sigmasums have to be normalized to nrow(per group) and subtracted:
   sigmacorrected <- mapply(calc_estimate_true_var, Zg, sigmaIg, SIMPLIFY = FALSE)
   meancorrected <- mapply(generalized_mean, Zg, sigmacorrected, sigmaIg, SIMPLIFY = FALSE)
@@ -267,7 +265,7 @@ vqda.rmult <- function(x,
 #' data_ilr = ilr(dataobs_coda[, 1:3])
 #' uncert_ilr = t(simplify2array(apply(uncertainties_coda[, 1:3],1,
 #'                        function(Delta) clrvar2ilr(diag(Delta)))))
-#' uncert_ilr = rmult(uncert_ilr) # change class into rmult from package 'compositions'
+#' uncert_ilr = compositions::rmult(uncert_ilr) # change class into rmult from package 'compositions'
 #' mylda_coda = vlda(x = data_ilr, uncertainties = uncert_ilr, grouping = dataobs_coda$Group)
 #' mypred_coda = predict(mylda_coda, newdata = data_ilr, newerror = uncert_ilr)
 #' forplot_coda = cbind(dataobs_coda, LG1 = mypred_coda$posterior[,1])
@@ -317,7 +315,7 @@ vlda.default <- function(x,
   p <- ncol(x)
   if (n != length(grouping))
     stop("nrow(x) and length(grouping) are different")
-  g <- as.factor(grouping)
+  g <- droplevels(as.factor(grouping))
   lev <- levels(g)
   counts <- as.vector(table(g))
   names(counts) <- lev
@@ -345,12 +343,12 @@ vlda.default <- function(x,
     if (ncol(uncertainties) != p^2) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure the input of the transformed uncertainties is correct.")
   }
 
-  Zg = split(x, grouping) # split works perfectly fine for rmult-class to get in the lists matrix.
+  Zg = split(x, g) # split works perfectly fine for rmult-class to get in the lists matrix.
   # if class is not rmult, split needs a data.frame to put it into matrix-like entries in the list-entries
   # to avoid the costs of data.frame but also to avoid that rmult is mandatory for running this function, here comes the reforming of the list- entries:
   Zg = lapply(Zg, function(y) matrix(y, ncol = ncol(x)))
   # split errors into the groups, now they are vectors
-  sigmaIg <- split(compositions::rmult(uncertainties), grouping)
+  sigmaIg <- split(compositions::rmult(uncertainties), g)
   # for following line see comment for Zg
   sigmaIg = lapply(sigmaIg, function(y) matrix(y, ncol = ncol(uncertainties)))
   # sum up all group variances and normalize by DF (maybe not the cleanest code, because the var is still there)
@@ -396,7 +394,7 @@ vlda.rmult <- function(x,
   p <- ncol(x)
   if (n != length(grouping))
     stop("nrow(x) and length(grouping) are different")
-  g <- as.factor(grouping)
+  g <- droplevels(as.factor(grouping))
   lev <- levels(g)
   counts <- as.vector(table(g))
   names(counts) <- lev
@@ -426,11 +424,9 @@ vlda.rmult <- function(x,
   # check the format of the uncertainties matrix, because then the uncertainties are stored as arrays in the rows.
   if (ncol(uncertainties) != p^2) stop("transformed uncertainties are expected to be the outcome of 't(apply( <original_uncertainties> , 1, function(Delta) clrvar2ilr(diag(Delta))))'. Please make sure 'uncertainties' has the correct input format and transformation(s)")
 
-  Zg = split(x, grouping) # split works perfectly fine for rmult-class to get in the lists matrix.
-  # this line only necessary, because split.rmult "looses" rmult class
-  Zg = lapply(Zg, function(y) rmult(y))
+  Zg = split(compositions::rmult(x), g) # split works perfectly fine for rmult-class to get in the lists matrix.
   # split errors into the groups, now they are vectors
-  sigmaIg <- split(compositions::rmult(uncertainties), grouping)
+  sigmaIg <- split(compositions::rmult(uncertainties), g)
   # sum up all group variances and normalize by DF (maybe not the cleanest code, because the var is still there)
   averaged_variance = Reduce("+", lapply(Zg, function(y) compositions::var(y)*(nrow(y) - 1)))/(n - ng)
   # sum all uncertainties by group
@@ -538,12 +534,12 @@ predict.vqda <- function(object,
 
   if (!is.null(Terms <- object$terms)) {
     if (missing(newdata))
-      newdata <- model.frame(object)
+      newdata <- stats::model.frame(object)
     else {
-      newdata <- model.frame(as.formula(delete.response(Terms)),
+      newdata <- stats::model.frame(stats::as.formula(stats::delete.response(Terms)),
                              newdata, na.action = function(x) x, xlev = object$xlevels)
     }
-    x <- model.matrix(delete.response(Terms), newdata, contrasts = object$contrasts)
+    x <- stats::model.matrix(stats::delete.response(Terms), newdata, contrasts = object$contrasts)
     xint <- match("(Intercept)", colnames(x), nomatch = 0L)
     if (xint > 0)
       x <- x[, -xint, drop = FALSE]
@@ -650,12 +646,12 @@ predict.vlda <- function(object,
 
   if (!is.null(Terms <- object$terms)) {
     if (missing(newdata))
-      newdata <- model.frame(object)
+      newdata <- stats::model.frame(object)
     else {
-      newdata <- model.frame(as.formula(delete.response(Terms)),
+      newdata <- stats::model.frame(stats::as.formula(stats::delete.response(Terms)),
                              newdata, na.action = function(x) x, xlev = object$xlevels)
     }
-    x <- model.matrix(delete.response(Terms), newdata, contrasts = object$contrasts)
+    x <- stats::model.matrix(stats::delete.response(Terms), newdata, contrasts = object$contrasts)
     xint <- match("(Intercept)", colnames(x), nomatch = 0L)
     if (xint > 0)
       x <- x[, -xint, drop = FALSE]
